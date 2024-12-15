@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .loading {
+      color: blue;
+    }
+    .error {
+      color: red;
+    }
+  </style>
+  <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>  
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-select/dist/react-select.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/react-select/dist/react-select.min.css" />
+</head>
+<body>
+  <div id="root"></div>
+  <script>
+    const { useState } = React;
+    const { default: Select } = ReactSelect;
+
+
+    const App = () => {
+      const [location, setLocation] = useState('');
+      const [currentWeather, setCurrentWeather] = useState(null);
+      const [forecast, setForecast] = useState(null);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState(null);
+
+      const locations = [
+        { value: 'New York', label: 'New York' },
+        { value: 'London', label: 'London' },
+        { value: 'Tokyo', label: 'Tokyo' },
+        { value: 'Mumbai', label: 'Mumbai' },
+      ];
+
+      const fetchWeatherData = async (location) => {
+        setLoading(true);
+        setError(null);
+        try {
+          const [weatherResponse, forecastResponse] = await Promise.all([
+            axios.get(`http://localhost:3300/weather?location=${location}`),
+            axios.get(`http://localhost:3300/forecast?location=${location}`),
+          ]);
+
+          setCurrentWeather(weatherResponse.data);
+          setForecast(forecastResponse.data.list.slice(0, 5));
+        } catch (err) {
+          console.error(err);
+          setError('Failed to fetch weather data. Please try again.');
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const handleLocationChange = (selectedOption) => {
+        setLocation(selectedOption.value);
+        fetchWeatherData(selectedOption.value);
+      };
+
+      return React.createElement('div', null, [
+        React.createElement('h1', { key: 'header' }, 'Weather App'),
+        React.createElement('div', { key: 'select', style: { marginBottom: '20px' } }, 
+          React.createElement(Select, {
+            options: locations,
+            onChange: handleLocationChange,
+            placeholder: 'Select a location',
+            'aria-label': 'Location Selector',
+          })
+        ),
+        loading && React.createElement('p', { key: 'loading', className: 'loading' }, 'Loading...'),
+        error && React.createElement('p', { key: 'error', className: 'error' }, error),
+        currentWeather &&
+          React.createElement('div', { key: 'currentWeather' }, [
+            React.createElement('h2', null, `Current Weather in ${location}`),
+            React.createElement('p', null, `Temperature: ${currentWeather.main.temp}°C`),
+            React.createElement('p', null, `Condition: ${currentWeather.weather[0].description}`),
+            React.createElement('p', null, `Humidity: ${currentWeather.main.humidity}%`),
+            React.createElement('p', null, `Wind Speed: ${currentWeather.wind.speed} m/s`),
+          ]),
+        forecast &&
+          React.createElement('div', { key: 'forecast' }, [
+            React.createElement('h2', null, '5-Day Forecast'),
+            React.createElement(
+              'ul',
+              null,
+              forecast.map((item) =>
+                React.createElement(
+                  'li',
+                  { key: item.dt },
+                  `${new Date(item.dt_txt).toLocaleDateString()} - ${item.main.temp}°C, ${item.weather[0].description}`
+                )
+              )
+            ),
+          ]),
+      ]);
+    };
+
+    ReactDOM.render(React.createElement(App), document.getElementById('root'));
+  </script>
+</body>
+</html>
